@@ -7,13 +7,11 @@ use App\Http\Requests\IndexStockLevelRequest;
 use App\Http\Resources\StockLevelResource;
 use App\Models\StockLevel;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class StockLevelController extends Controller
 {
     public function index(IndexStockLevelRequest $request): JsonResponse
     {
-
         $filters = $request->validated();
 
         $query = StockLevel::query()
@@ -26,15 +24,18 @@ class StockLevelController extends Controller
             $query->where('warehouse_id', $filters['warehouse_id']);
         }
 
-        if (isset($filters['sku'])) {
-            $query->whereHas('product', function ($query) use ($filters) {
-                $query->where('product_id', $filters['product_id']);
-            });
+        if (isset($filters['product_id'])) {
+            $query->where('product_id', $filters['product_id']);
         }
 
         $levels = $query
             ->orderBy('id')
-            ->paginate($filters['per_page'] ?? 20);
+            ->paginate($filters['per_page'] ?? 20)
+            ->appends($request->safe()->only([
+                'product_id',
+                'warehouse_id',
+                'per_page',
+            ]));
 
         return StockLevelResource::collection($levels)->response();
     }
