@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Concerns;
+namespace App\Models\Traits;
 
 use App\Models\Scopes\TenantScope;
 use App\Tenancy\TenantContext;

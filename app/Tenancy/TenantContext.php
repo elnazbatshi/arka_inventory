@@ -13,7 +13,6 @@ final class TenantContext
         if ($tenantId < 1) {
             throw new LogicException('Invalid tenant ID.');
         }
-
         $this->tenantId = $tenantId;
     }
 

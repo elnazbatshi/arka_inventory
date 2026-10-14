@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreStockMovementRequest;
+use App\Http\Resources\StockMovementResource;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
 
@@ -15,9 +16,11 @@ class StockMovementController extends Controller
     ): JsonResponse {
         $movement = $service->store($request->validated());
 
-        return response()->json([
-            'message' => 'حرکت موجودی با موفقیت ثبت شد.',
-            'data' => $movement,
-        ], 201);
+        return (new StockMovementResource($movement))
+            ->additional([
+                'message' => 'حرکت موجودی با موفقیت ثبت شد.',
+            ])
+            ->response()
+            ->setStatusCode(201);
     }
 }

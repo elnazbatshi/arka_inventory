@@ -3,21 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\IndexStockLevelRequest;
+use App\Http\Resources\StockLevelResource;
 use App\Models\StockLevel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class StockLevelController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexStockLevelRequest $request): JsonResponse
     {
 
-        $filters = $request->validate([
-            'warehouse_id' => ['sometimes', 'integer', 'min:1'],
-            'sku' => ['sometimes', 'string', 'max:255'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ]);
+        $filters = $request->validated();
 
         $query = StockLevel::query()
             ->with([
@@ -39,6 +36,6 @@ class StockLevelController extends Controller
             ->orderBy('id')
             ->paginate($filters['per_page'] ?? 20);
 
-        return response()->json($levels);
+        return StockLevelResource::collection($levels)->response();
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Warehouse;
 use App\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Exceptions\InsufficientStockException;
 
 class StockMovementService
 {
@@ -14,7 +15,8 @@ class StockMovementService
 
     public function __construct(
         private readonly TenantContext $context
-    ) {
+    )
+    {
     }
 
     public function store(array $data): array
@@ -29,18 +31,18 @@ class StockMovementService
                 ->lockForUpdate()
                 ->first();
 
-            if (! $product) {
+            if (!$product) {
                 throw ValidationException::withMessages([
                     'sku' => 'محصول در شرکت جاری پیدا نشد.',
                 ]);
             }
 
-            $warehouseId = (int) $data['warehouse_id'];
-            $quantity = (int) $data['quantity'];
+            $warehouseId = (int)$data['warehouse_id'];
+            $quantity = (int)$data['quantity'];
             $type = $data['type'];
 
             $destinationId = $type === 'transfer'
-                ? (int) $data['to_warehouse_id']
+                ? (int)$data['to_warehouse_id']
                 : null;
 
             $warehouseIds = [$warehouseId];
@@ -60,7 +62,7 @@ class StockMovementService
                 ->get()
                 ->keyBy('id');
 
-            if (! $warehouses->has($warehouseId)) {
+            if (!$warehouses->has($warehouseId)) {
                 throw ValidationException::withMessages([
                     'warehouse_id' => 'انبار در شرکت جاری پیدا نشد.',
                 ]);
@@ -68,7 +70,7 @@ class StockMovementService
 
             if (
                 $destinationId !== null
-                && ! $warehouses->has($destinationId)
+                && !$warehouses->has($destinationId)
             ) {
                 throw ValidationException::withMessages([
                     'to_warehouse_id' => 'انبار مقصد در شرکت جاری پیدا نشد.',
@@ -85,7 +87,7 @@ class StockMovementService
 
                 $level = (clone $query)->lockForUpdate()->first();
 
-                if (! $level) {
+                if (!$level) {
                     // قفل محصول، ساخت هم‌زمان همین موجودی را کنترل می‌کند.
                     $levelId = DB::table('stock_levels')->insertGetId([
                         'tenant_id' => $tenantId,
@@ -104,12 +106,12 @@ class StockMovementService
                 $levels[$id] = $level;
             }
 
-            $before = (int) $levels[$warehouseId]->quantity;
+            $before = (int)$levels[$warehouseId]->quantity;
 
             if ($type !== 'in' && $before < $quantity) {
-                throw ValidationException::withMessages([
-                    'quantity' => 'موجودی انبار برای این عملیات کافی نیست.',
-                ]);
+                throw new InsufficientStockException(
+                    'موجودی انبار برای این عملیات کافی نیست.'
+                );
             }
 
             $after = $type === 'in'
@@ -126,13 +128,14 @@ class StockMovementService
             $changes = [$warehouseId => $after];
 
             if ($destinationId !== null) {
-                $destinationBefore = (int) $levels[$destinationId]->quantity;
+                $destinationBefore = (int)$levels[$destinationId]->quantity;
                 $destinationAfter = $destinationBefore + $quantity;
 
                 $this->checkCapacity($destinationAfter);
 
                 $changes[$destinationId] = $destinationAfter;
 
+                $meta['from_warehouse_id'] = $warehouseId;
                 $meta['to_warehouse_id'] = $destinationId;
                 $meta['destination_quantity_before'] = $destinationBefore;
                 $meta['destination_quantity_after'] = $destinationAfter;
