@@ -28,7 +28,7 @@ class StockLevelController extends Controller
 
         if (isset($filters['sku'])) {
             $query->whereHas('product', function ($query) use ($filters) {
-                $query->where('sku', $filters['sku']);
+                $query->where('product_id', $filters['product_id']);
             });
         }
 
